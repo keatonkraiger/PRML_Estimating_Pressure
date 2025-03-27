@@ -1,0 +1,123 @@
+data:
+  active_only: true
+  chunk_data: true
+  chunk_size: 5000
+  contact_threshold: 0.003
+  data_type: BODY25_3D
+  num_regions:
+  pressure_is_distribution: true
+  sequence_length: 13
+  shuffle_data: false
+  subject_wise_max_norm: false
+  subject_wise_weight_norm: false
+  use_regions: true
+  view: 1
+  binary_contact: False 
+  gt_com: False
+
+default:
+  checkpoint_path: path to the results directory trained on PSUTMM-100/checkpoints/Subject1
+  data_path: Chunked_PSU/OM_BODY25_3D
+  device: cuda
+  log_interval: 50
+  log_path: log
+  mode: ['pressure'] 
+  om: true
+  results_path: OM_results 
+  seed: 0
+  test: true
+  train: true
+  eval: true
+
+eval:
+  bad_frames_in_seq_thresh: 12
+  checkpoint_flag: best
+  eval_results_path: stats
+  save_output: True
+  zero_conf_thresh: 0
+
+loss:
+  com_reduction: mean
+  contact_reduction: mean
+  final_reduction: 
+  lambda_com: 1
+  lambda_contact: 1
+  lambda_pressure: 1
+  loss_type: weighted
+  pressure_loss: kld
+  max_penalty: 1.0
+  pressure_reduction: sum 
+
+network:
+  decoder_dim: 256 
+  dropout: 0.1
+  mlp_dim: 2048
+  model: footformer
+  norm_first: false
+  num_heads: 16
+  num_layers: 8
+  pool: attn
+  transformer: multi
+  pos: sinusoidal
+  pose_embed_dim: 256
+  pose_embedder: gcn
+
+training:
+  batch_size: 256
+  max_grad_norm: 0.5
+  dataloader_workers: 0
+  decay: 0.01
+  warmup_steps: 1000
+  early_stop_patience: 7
+  epochs: 100
+  lr: 5.0e-4
+  normalize: null
+  optimizer: adamw
+  per_sub_epochs: null
+  scheduler: cosine_warmup
+  train_val_split: 0.9
+  val_every: 4
+  smoothing_window: 5
+
+viz:
+  # General settings
+  enabled: true
+  fps: 10
+  dpi: 300
+  save_format: 'png'
+  colormap: 'jet'
+  plt_style: 'default'
+  
+  # Figure settings
+  figures:
+    pressure:
+      figsize: [10, 8]
+      view_angle: [34, -145]
+    contact:
+      figsize: [2, 6]
+      show_colorbar: true
+      show_both_feet: true
+    com:
+      figsize: [6, 6]
+      view_angle_3d: [30, 45]
+  
+  # Collage settings
+  collage:
+    enabled: true
+    samples_per_viz: 8
+    stack_vertical: true
+    
+  # Video settings
+  video:
+    dpi: 100
+    downsample: 1
+    enabled: true
+    modalities: ['pressure'] 
+    preset: 'medium'
+    crf: 23
+    video_processors: 1
+    
+  # Visualization during different phases
+  validation:
+    enabled: true
+    samples_per_epoch: 8
