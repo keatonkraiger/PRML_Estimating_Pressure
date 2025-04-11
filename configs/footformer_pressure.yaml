@@ -70,7 +70,7 @@ training:
   decay: 0.01
   warmup_steps: 1000
   early_stop_patience: 7
-  epochs: 1
+  epochs: 50
   lr: 5.0e-4
   normalize: null
   optimizer: adamw
