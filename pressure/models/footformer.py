@@ -431,7 +431,7 @@ class ContactConditionedPressureHead(nn.Module):
      
 class FootFormer(nn.Module):
     def __init__(self, num_joints, joint_dim, pose_embed_dim, num_heads, num_layers, output_dims, seq_len=5, dropout_p=0.1, transformer='transformer', 
-                 pos='learnable', mlp_dim=1024, pool='attn',  decoder_dim=1024, mode='pressure', pose_embedder='gcn', pred_distribution=False, contact_conditioned=True):
+                 pos='learnable', mlp_dim=1024, pool='attn',  decoder_dim=1024, mode='pressure', pose_embedder='gcn', pred_distribution=False, contact_conditioned=False):
         super().__init__()
         self.sequence_length = seq_len
         self.pool = pool
@@ -503,6 +503,14 @@ class FootFormer(nn.Module):
         # Create heads for each task
         self.contact_conditioned = contact_conditioned
         if 'pressure' in mode:
+            self.task_heads['pressure'] = self._create_head(
+                pose_embed_dim, 
+                decoder_dim, 
+                output_dims['pressure'],
+                task_activations['pressure']
+            )
+            
+        if 'contact' in mode:
             if contact_conditioned:
                 self.task_heads['pressure'] = ContactConditionedPressureHead(
                     input_dim=pose_embed_dim,
@@ -510,15 +518,6 @@ class FootFormer(nn.Module):
                     pressure_dim=output_dims['pressure'],
                     contact_dim=output_dims['contact']
                 )
-            else:
-                self.task_heads['pressure'] = self._create_head(
-                    pose_embed_dim, 
-                    decoder_dim, 
-                    output_dims['pressure'],
-                    task_activations['pressure']
-                )
-            
-        if 'contact' in mode:
             self.task_heads['contact'] = self._create_head(
                 pose_embed_dim,
                 decoder_dim,

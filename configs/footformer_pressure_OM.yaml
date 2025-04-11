@@ -10,13 +10,13 @@ data:
   shuffle_data: false
   subject_wise_max_norm: false
   subject_wise_weight_norm: false
-  use_regions: true
+  use_regions: False
   view: 1
   binary_contact: False 
   gt_com: False
 
 default:
-  checkpoint_path: path to the results directory trained on PSUTMM-100/checkpoints/Subject1
+  checkpoint_path: path to the results directory trained on PSUTMM-100/checkpoints/Subject1 (e.g. /mnt/c/Users/Keaton/Desktop/S25/PRML_TA/PRML_Estimatating_Pressure/Results/BODY25_3D/footformer/pressure/kld/seq_13_lr_0.0005_bs_256__adamw__cosine_warmup_pose_dim256_heads_16_layers_8_dropout_0.1_pos_sinusoidal_decoder_dim_256_mlpd_2048_embedder_gcn_multi/checkpoints/Subject1)
   data_path: Chunked_PSU/OM_BODY25_3D
   device: cuda
   log_interval: 50
@@ -26,7 +26,7 @@ default:
   results_path: OM_results 
   seed: 0
   test: true
-  train: true
+  train: False
   eval: true
 
 eval:
@@ -81,7 +81,7 @@ training:
 
 viz:
   # General settings
-  enabled: true
+  enabled: false
   fps: 10
   dpi: 300
   save_format: 'png'

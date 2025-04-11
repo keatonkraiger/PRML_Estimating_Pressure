@@ -35,7 +35,7 @@ There are two extension directions for this project:
 
 The codebase is structured as follows:
 
-- `scripts/`: Contains scripts for training, evaluation, and and dataset creation.
+- `scripts/`: Contains scripts for training, evaluation, and and dataset creation. See the relevant sections for more details.
 - `pressure/`: Contains the implementation of the FootFormer model and other related components including
   - `data/`: Contains the dataset class and data processing utilities.
   - `models/`: Contains the FootFormer model and other related components.
@@ -79,6 +79,8 @@ where the above arguments
 
 If you are not doing one of the extensions, you will only be using the foot pressure distribution data.
 
+You  can find the Ordinary Movement data here: [OneDrive Link](https://pennstateoffice365-my.sharepoint.com/:u:/g/personal/kbk5531_psu_edu/EWnEc94Sp5NIj0XaGIf9cBkBYGadtD9smVOj05j1gD9L4g?e=OebffI)
+
 ## Training and Evaluation
 
 To train the FootFormer model to predict pressure from the dataset, you can use the `scripts/train.py` script and pass a configuration file. You can run the following command to train the model:
@@ -87,4 +89,32 @@ To train the FootFormer model to predict pressure from the dataset, you can use 
 python scripts/train.py --config configs/footformer.yaml
 ```
 
-This will train and test the model LOSO (Leave-One-Subject-Out) on the PSUTMM-100 dataset and save the output, checkpoints, and evaluation results in the `output/` directory (specified in the configuration file).
+This will train and test the model LOSO (Leave-One-Subject-Out) on the PSUTMM-100 dataset and save the output, checkpoints, and evaluation results in the `output/` directory (specified in the configuration file). You can resume training with
+
+```bash
+python scripts/train.py --config configs/footformer.yaml --resume
+```
+
+You can also just evaluate a trained model with
+
+```bash
+python scripts/eval.py --config configs/footformer.yaml
+```
+
+## Evaluating on Ordinary Movements 
+
+To evaluate on the ordinary movements dataset, you first will need to create the dataset with 
+
+```bash
+python scripts/create_chunk_dataset.py --make_pressure_distribution --save_path Chunked_PSU/BODY25_3D_5fps_distribution --root_dir path/to/OM/root --sample_rate 1
+```
+
+In a config file, set the `checkpoint` directory to the path of a checkpoint for **Subject1**. Then, you can run the evaluation script with
+
+```bash
+python scripts/eval.py --config configs/footformer_pressure_OM.yaml
+```
+
+## Visualization
+
+To visualize test results, set `viz.enabled` to `True` in the config file. You can then run the evaluation on a subject/set you want to visualize. Visualization can be expensive. It will be up to you to look at what each of the parameters in the config file does and how to change them.

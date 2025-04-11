@@ -23,7 +23,7 @@ insole_shapes = {
     'active_pressure': (1910) # Output of active pressure pixels only
 }
 
-def select_model(cfg, foot_mask=None):
+def select_model(cfg):
     print(f"Creating model: {cfg.network.model}")
     input_shape = data_dims[cfg.data.data_type]
     input_size = np.prod(input_shape)
@@ -54,7 +54,7 @@ def select_model(cfg, foot_mask=None):
  
     if cfg.network.model == 'pns':
         model = PNS(input_size=input_size, hidden_count=cfg.network.hidden_count, FC_size=cfg.network.FC_size, 
-                    output_size=output_dims['pressure'], foot_mask=foot_mask, dropout=cfg.network.dropout, mult_by_mask=cfg.network.mask_mult)
+                    output_size=output_dims['pressure'], dropout=cfg.network.dropout, mult_by_mask=cfg.network.mask_mult)
     elif cfg.network.model == 'footformer':
         pred_distribution = cfg.data.pressure_is_distribution
         model = FootFormer(num_joints=input_shape[0], joint_dim=input_shape[1], pose_embed_dim=cfg.network.pose_embed_dim, seq_len=cfg.data.sequence_length,

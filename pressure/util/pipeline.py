@@ -12,7 +12,7 @@ from pressure.util.selection import *
 from pressure.data.data_support import *
 
 class Pipeline:
-    def __init__(self, manager, foot_mask: torch.Tensor):
+    def __init__(self, manager):
         """
         Args:
             manager: ExperimentManager instance
@@ -24,7 +24,6 @@ class Pipeline:
         self.writer = manager.writer
         self.visualizer = manager.visualizer
         self.device = self.cfg.default.device
-        self.foot_mask = foot_mask
         self.nan_foot_mask = np.load('assets/foot_mask_nans.npy')
         
         # Training attributes set in setup_training
@@ -50,7 +49,7 @@ class Pipeline:
         from pressure.util.selection import select_model, select_train_support
        
         self.current_subject = subject 
-        self.model = select_model(self.cfg, self.foot_mask)
+        self.model = select_model(self.cfg)
         self.model.to(self.device)
         if not skip_support: 
             self.optimizer, self.scheduler, self.loss_fn = select_train_support(self.cfg, self.model, dataset_size, self.contact_processor)

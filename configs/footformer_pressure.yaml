@@ -10,9 +10,9 @@ data:
   shuffle_data: true
   subject_wise_max_norm: false
   subject_wise_weight_norm: false
-  use_regions: true
+  use_regions: false
   view: 1
-  binary_contact: False #True/False (use sigmoid)
+  binary_contact: False 
   gt_com: True
 
 default:
@@ -25,7 +25,7 @@ default:
   om: false
   results_path: Results
   seed: 0
-  subjects: all
+  subjects: all # Set to all or a LIST of specific subjects (e.g. [1,2])
   test: true
   train: True
   eval: true
@@ -66,11 +66,11 @@ network:
 training:
   batch_size: 256
   max_grad_norm: 0.5
-  dataloader_workers: 8
+  dataloader_workers: 1
   decay: 0.01
   warmup_steps: 1000
   early_stop_patience: 7
-  epochs: 100
+  epochs: 1
   lr: 5.0e-4
   normalize: null
   optimizer: adamw
