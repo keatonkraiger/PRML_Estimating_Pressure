@@ -393,11 +393,14 @@ def create_chunks(args, subject, weight):
 
     subject_dir = os.path.join(args.root_dir, f'Subject{subject}')
     pressure_files = glob(os.path.join(subject_dir, 'Pressure_*.mat'))
-
+   
     if '3D' in args.data_type:
         joint_files = glob(os.path.join(subject_dir, f'{args.data_type}_*.mat'))
     else:
         joint_files = glob(os.path.join(subject_dir, f'{args.data_type}_V{args.view}_*.mat'))
+        
+    if not pressure_files or not joint_files:
+        raise FileNotFoundError(f'No files found for subject {subject} in {subject_dir}')
 
     natural_numerical_sort = lambda x: [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', os.path.splitext(os.path.basename(x))[0])]
     pressure_files.sort(key=natural_numerical_sort)
@@ -442,6 +445,7 @@ def create_chunks(args, subject, weight):
         all_pressure_data.append(pressure_data)
         all_joint_data.append(joint_data)
 
+    breakpoint()
     pressure_dataset = np.concatenate(all_pressure_data, axis=0)
     joint_dataset = np.concatenate(all_joint_data, axis=0)
     joint_dataset, pressure_dataset, foot_pressure_max, joint_norm_info, com_data = data_normalization(joint_dataset, pressure_dataset, args.data_type, args.remove_zero_pressure, args.rotation_inv, args.threshold, args.bone_normalize, subject=subject, cfg=args, used_takes=used_take_numbers)
