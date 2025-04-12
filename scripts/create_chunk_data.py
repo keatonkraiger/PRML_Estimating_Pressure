@@ -445,7 +445,6 @@ def create_chunks(args, subject, weight):
         all_pressure_data.append(pressure_data)
         all_joint_data.append(joint_data)
 
-    breakpoint()
     pressure_dataset = np.concatenate(all_pressure_data, axis=0)
     joint_dataset = np.concatenate(all_joint_data, axis=0)
     joint_dataset, pressure_dataset, foot_pressure_max, joint_norm_info, com_data = data_normalization(joint_dataset, pressure_dataset, args.data_type, args.remove_zero_pressure, args.rotation_inv, args.threshold, args.bone_normalize, subject=subject, cfg=args, used_takes=used_take_numbers)
