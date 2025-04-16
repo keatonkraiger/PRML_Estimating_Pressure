@@ -1,6 +1,7 @@
 from glob import glob
 import json
 import json
+from pathlib import Path
 import pickle
 import h5py
 import random
@@ -47,7 +48,11 @@ class PSUTMM100_Temporal_LOSO_Chunked(Dataset):
            
             if split != 'test': 
                 metadata = [item for sublist in metadata for item in sublist]
-
+                
+            if files is not None and metadata is not None:
+                files = [Path(f).as_posix() for f in files]
+                metadata = [item for item in metadata if Path(item['file_path']).as_posix() in files]
+                
             if files is not None:
                 self.chunk_files = files 
                 self.metadata = []

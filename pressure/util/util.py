@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 import re
 import os
 from glob import glob
@@ -30,6 +31,7 @@ def dict_to_simplenamespace(d):
     return d
 
 def load_config(filepath):
+    filepath = Path(filepath)
     with open(filepath, 'r') as file:
         data = yaml.safe_load(file)
     return dict_to_simplenamespace(data)
@@ -111,6 +113,8 @@ def split_chunk_paths(chunk_dir, subject, train_val_split=0.9, shuffle=True):
     test_files = []
    
     all_files = glob(os.path.join(chunk_dir, 'subject*.pkl'))
+    all_files = [Path(f).as_posix() for f in all_files]  # Normalize paths
+    
     for file in all_files:
         if f"subject_{subject}_" in file:
             test_files.append(file)

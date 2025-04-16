@@ -1,4 +1,5 @@
 import argparse 
+from pathlib import Path
 import json
 import numpy as np
 import json
@@ -218,7 +219,11 @@ def data_normalization(joints, pressure, data_type, remove_zero_pressure=False, 
 
             # Add confidence back to CoM
             vicon_com = np.concatenate([vicon_com[:, :3], com_conf[:, None]], axis=-1)
-          
+        else:
+            pelvis_origins = np.zeros_like(pelvis_locs[:, :3])  # Placeholder for pelvis origins
+            # Only normalize where CoM exists (confidence = 1)
+            pelvis_origins = vicon_com[:, :3] - pelvis_locs[:, :3]
+            
         com_values = vicon_com[:, :3]  # Extract (x, y, z)
         com_confidence = vicon_com[:, 3]  # Extract confidence
 
@@ -499,8 +504,7 @@ def create_chunks(args, subject, weight):
     for i in range(num_chunks):
         chunk = data[i*chunk_size:(i+1)*chunk_size]
         file_path = os.path.join(save_path, f'subject_{subject}_chunk_{i}.pkl')
-        if sys.platform.startswith('win'):
-            file_path = file_path.replace("/", "\\")
+        file_path = Path(file_path).as_posix() 
             
         # Save chunk
         with open(file_path, 'wb') as f:

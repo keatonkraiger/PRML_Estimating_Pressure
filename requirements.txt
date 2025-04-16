@@ -6,3 +6,6 @@ pyyaml
 Pillow
 opencv-python
 moviepy
+scipy
+scikit-image
+tensorboard

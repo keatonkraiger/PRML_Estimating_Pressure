@@ -145,7 +145,7 @@ if __name__ == '__main__':
    
     try:
         cfg = load_config(args.config)
-        main(cfg, args)
     except FileNotFoundError:
-        raise FileNotFoundError(f"Config file not found at {args.config}")
-        
+        raise FileNotFoundError(f"Config file '{args.config}' not found.")
+    
+    main(cfg, args) 

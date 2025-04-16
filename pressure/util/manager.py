@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 import re
+import hashlib
+import platform
 from typing import Dict, Any
 from pathlib import Path
 from xml.etree.ElementInclude import include
@@ -157,15 +159,30 @@ class ExperimentConfig:
         ]
         
         param_components.extend(self.model_specific_params.values())
-        path = '/'.join(filter(None, path_components))
+        path = Path(*filter(None, path_components))  # builds clean path
         params = '_'.join(filter(None, param_components))
-        
+
         if include_timestamp:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             params = f"{params}_{timestamp}"
-            
-        return str(Path(path) / params)
 
+        exp_path = path / params
+
+        # Windows max path handling
+        if platform.system() == "Windows":
+            try:
+                resolved = exp_path.resolve()
+            except FileNotFoundError:
+                # If path doesn't exist yet, resolve parent
+                resolved = exp_path.parent.resolve() / exp_path.name
+
+            if len(str(resolved)) > 100:
+                print(f"⚠️ Path too long on Windows ({len(str(resolved))} chars). Hashing param string.")
+                hashed_params = hashlib.md5(params.encode()).hexdigest()
+                exp_path = path / hashed_params
+
+        return exp_path
+    
 class ExperimentManager:
     """Manages experiment directories, configurations, logging, and TensorBoard."""
     def __init__(self, config, base_path=None, include_timestamp=False):

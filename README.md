@@ -101,6 +101,42 @@ You can also just evaluate a trained model with
 python scripts/eval.py --config configs/footformer.yaml
 ```
 
+## 🧠 Dataset Format
+
+This project uses joint data in the **BODY25 format** as defined by [OpenPose](https://cmu-perceptual-computing-lab.github.io/openpose/web/html/doc/md_doc_02_output.html). The BODY25 format includes 24 body keypoints and 1 additional for the background (which we omit).
+
+Each joint is represented as an index from 0 to 24. Below is the joint index mapping:
+
+| Index | Joint Name          |
+|-------|---------------------|
+| 0     | Nose                |
+| 1     | Neck                |
+| 2     | Right Shoulder      |
+| 3     | Right Elbow         |
+| 4     | Right Wrist         |
+| 5     | Left Shoulder       |
+| 6     | Left Elbow          |
+| 7     | Left Wrist          |
+| 8     | Mid Hip             |
+| 9     | Right Hip           |
+| 10    | Right Knee          |
+| 11    | Right Ankle         |
+| 12    | Left Hip            |
+| 13    | Left Knee           |
+| 14    | Left Ankle          |
+| 15    | Right Eye           |
+| 16    | Left Eye            |
+| 17    | Right Ear           |
+| 18    | Left Ear            |
+| 19    | Left Big Toe        |
+| 20    | Left Small Toe      |
+| 21    | Left Heel           |
+| 22    | Right Big Toe       |
+| 23    | Right Small Toe     |
+| 24    | Right Heel          |
+| 25    | Background          |
+
+
 ## Evaluating on Ordinary Movements 
 
 To evaluate on the ordinary movements dataset, you first will need to create the dataset with 
