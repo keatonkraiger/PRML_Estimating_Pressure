@@ -1,4 +1,4 @@
-# PRML 2025 Project 4: Enhancement and Validation on Estimating Foot Pressure from Visual Input
+# PRML 2026 Project 4: Enhancement and Validation on Estimating Foot Pressure from Visual Input
 
 ## Accessing PSUTMM-100 Dataset (Important)
 
