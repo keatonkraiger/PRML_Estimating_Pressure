@@ -546,37 +546,125 @@ if __name__ == '__main__':
     
     if args.OM:
         print(f'Creating chunks of size {args.chunk_size} for ordinary movement data...')
-        OM_dirs = glob(os.path.join(args.root_dir, 'OM*/'))
-        
-        with open('assets/OM_weights.json', 'r') as f: 
-            weights = json.load(f)
-            
+
+        # Load OM subject info; each entry contains subject metadata,
+        # including "mass_kg" used here as the subject weight.
+        with open('assets/OM_weights.json', 'r') as f:
+            om_subject_info = json.load(f)
+
         OM_data = {
             'OM_ids': [],
             'max_pressures': [],
             'weights': [],
             'normalization_info': []
-        } 
-        
-        for OM in OM_dirs:
-            om_id = OM.split('OM')[1].strip('/')
-            weight = weights[f'OM{om_id}']
-            save_path = os.path.join(args.save_path, f'OM{om_id}')
-            os.makedirs(save_path, exist_ok=True)
-            print(f'\nCreating files for ordinary movement {om_id}...')
-            
-            OM_dir = os.path.join(args.root_dir, OM)
-            max_fp, normalization_info = create_OM_chunks(
-                args,
-                OM_dir, om_id, args.chunk_size, args.sample_rate, 
-                args.data_type, args.view, weight=weight, save_path=save_path, 
+        }
+
+        # Inspect root_dir to determine if it directly contains OM folders
+        # or multiple subject folders with OM subdirectories.
+        folder_names = [entry.name for entry in os.scandir(args.root_dir) if entry.is_dir()]
+        has_OM_dirs = any('OM' in name for name in folder_names)
+        has_subject_dirs = not has_OM_dirs
+
+        if has_OM_dirs and not has_subject_dirs:
+            # Case A: root_dir directly contains OM*/ folders (single-subject setup)
+            # Derive subject name from the root_dir and look up mass_kg.
+            subject_name = os.path.basename(os.path.normpath(args.root_dir))
+            if subject_name not in om_subject_info:
+                raise KeyError(f"Subject '{subject_name}' not found in assets/OM_weights.json")
+            subject_weight = om_subject_info[subject_name]['mass_kg']
+
+            OM_dirs = sorted(glob(os.path.join(args.root_dir, 'OM*/')))
+
+            for OM_dir in OM_dirs:
+                om_name = os.path.basename(os.path.normpath(OM_dir))  # e.g. "OM1"
+                om_id = om_name.replace('OM', '')
+                weight = subject_weight
+
+                save_path = os.path.join(args.save_path, f'OM{om_id}')
+                os.makedirs(save_path, exist_ok=True)
+                print(f'\nCreating files for ordinary movement {om_id}...')
+
+                max_fp, normalization_info = create_OM_chunks(
+                    args,
+                    OM_dir, om_id, args.chunk_size, args.sample_rate,
+                    args.data_type, args.view, weight=weight, save_path=save_path,
+                )
+
+                OM_data['OM_ids'].append(om_id)
+                OM_data['max_pressures'].append(max_fp)
+                OM_data['weights'].append(weight)
+                OM_data['normalization_info'].append(normalization_info)
+
+        elif has_subject_dirs:
+            # Case B: root_dir contains multiple subject folders, each with OM*/ inside
+            print('Detected multiple subject directories containing OM data...')
+            subject_dirs = sorted(
+                [entry.path for entry in os.scandir(args.root_dir) if entry.is_dir()]
             )
-            
-            OM_data['OM_ids'].append(om_id)
-            OM_data['max_pressures'].append(max_fp)
-            OM_data['weights'].append(weight)
-            OM_data['normalization_info'].append(normalization_info)
-        
+
+            for subject_dir in subject_dirs:
+                subject_name = os.path.basename(os.path.normpath(subject_dir))
+                if subject_name not in om_subject_info:
+                    print(f"  Subject '{subject_name}' not in OM_weights.json, skipping.")
+                    continue
+                subject_weight = om_subject_info[subject_name]['mass_kg']
+                print(f'\nCreating OM files for subject {subject_name}...')
+
+                # Per-subject aggregation for normalization info
+                subject_om_data = {
+                    'subject_name': subject_name,
+                    'OM_ids': [],
+                    'max_pressures': [],
+                    'weights': [],
+                    'normalization_info': []
+                }
+
+                # Root path where this subject's OM chunks live
+                subject_save_root = os.path.join(args.save_path, subject_name)
+                os.makedirs(subject_save_root, exist_ok=True)
+
+                OM_dirs = sorted(glob(os.path.join(subject_dir, 'OM*/')))
+                if not OM_dirs:
+                    print(f'  No OM directories found in {subject_dir}, skipping.')
+                    continue
+
+                for OM_dir in OM_dirs:
+                    om_name = os.path.basename(os.path.normpath(OM_dir))  # e.g. "OM1"
+                    om_id = om_name.replace('OM', '')
+                    weight = subject_weight
+
+                    # Save inside a subject-specific subfolder to avoid collisions
+                    save_path = os.path.join(subject_save_root, f'OM{om_id}')
+                    os.makedirs(save_path, exist_ok=True)
+                    print(f'  Creating files for {subject_name} ordinary movement {om_id}...')
+
+                    max_fp, normalization_info = create_OM_chunks(
+                        args,
+                        OM_dir, om_id, args.chunk_size, args.sample_rate,
+                        args.data_type, args.view, weight=weight, save_path=save_path,
+                    )
+
+                    OM_data['OM_ids'].append(om_id)
+                    OM_data['max_pressures'].append(max_fp)
+                    OM_data['weights'].append(weight)
+                    OM_data['normalization_info'].append(normalization_info)
+
+                    subject_om_data['OM_ids'].append(om_id)
+                    subject_om_data['max_pressures'].append(max_fp)
+                    subject_om_data['weights'].append(weight)
+                    subject_om_data['normalization_info'].append(normalization_info)
+
+                # Write per-subject normalization_info.pkl and args.json so
+                # evaluation can use subject_save_root as data_path.
+                with open(os.path.join(subject_save_root, 'normalization_info.pkl'), 'wb') as f:
+                    pickle.dump(subject_om_data, f)
+
+                with open(os.path.join(subject_save_root, 'args.json'), 'w') as f:
+                    json.dump(vars(args), f, indent=4)
+        else:
+            raise ValueError(f"Could not determine OM directory structure in {args.root_dir}")
+
+        # Aggregate normalization info across all processed OMs
         with open(os.path.join(args.save_path, 'normalization_info.pkl'), 'wb') as f:
             pickle.dump(OM_data, f)
 

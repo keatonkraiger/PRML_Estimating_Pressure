@@ -25,7 +25,7 @@ def create_zero_pressure_mask(pressure_batch, active_only):
         return torch.sum(pressure_batch.reshape(pressure_batch.shape[0], -1), dim=1) == 0
 
 def eval_model(model, test_loader, result_save_dir, zero_conf_thresh, data_id, experiment_manager,
-               cfg, logger, writer=None, global_step=0):
+               cfg, logger, writer=None, global_step=0, data_root=None, run_label=None):
     """
     Evaluate model performance on test data.
     """
@@ -33,8 +33,10 @@ def eval_model(model, test_loader, result_save_dir, zero_conf_thresh, data_id, e
     model_dtype = next(model.parameters()).dtype
     model = model.to(device)
     model.eval()
- 
-    normalizer = DataNormalizer(cfg.default.data_path, cfg=cfg)
+
+    # Allow overriding the data root so we can handle per-subject OM
+    # directories while keeping cfg/default consistent elsewhere.
+    normalizer = DataNormalizer(data_root or cfg.default.data_path, cfg=cfg)
     normalizer.verify_consistency(cfg)
 
     outputs = defaultdict(list)
@@ -113,11 +115,18 @@ def eval_model(model, test_loader, result_save_dir, zero_conf_thresh, data_id, e
             targets['contact'], data_id, cfg, reconstruct_full=False
         )
 
+    # Choose a descriptive run label for saving outputs/metrics
+    if run_label is None:
+        if cfg.default.om:
+            run_label = f'OM_{data_id}'
+        else:
+            run_label = f'subject{data_id}'
+
     # Save outputs if enabled
     if cfg.eval.save_output:
-        output_dir = os.path.join(os.path.dirname(result_save_dir), "output")
+        output_dir = os.path.join(result_save_dir, "output")
         os.makedirs(output_dir, exist_ok=True)
-        
+
         output_dict = {
             'predictions': outputs,
             'targets': targets,
@@ -125,28 +134,27 @@ def eval_model(model, test_loader, result_save_dir, zero_conf_thresh, data_id, e
         }
        
         if 'pressure' in outputs:
-            output_dict['pressure_sums'] = np.nansum(targets['pressure'].reshape(len(targets['pressure']), -1), axis=1)
+            output_dict['pressure_sums'] = np.nansum(
+                targets['pressure'].reshape(len(targets['pressure']), -1), axis=1
+            )
 
-        if cfg.default.om:
-            save_path = os.path.join(output_dir, f'OM_{data_id}_output.pkl')
-        else:
-            save_path = os.path.join(output_dir, f'subject{data_id}_output.pkl')
-        with open(save_path, 'wb') as f:
+        output_path = os.path.join(output_dir, f'{run_label}_output.pkl')
+        with open(output_path, 'wb') as f:
             pickle.dump(output_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
    
     # Create videos if enabled
     if cfg.viz.video.enabled:
         start_time = time.time()
         logger.info("Creating visualization videos...")
-        video_dir = Path(result_save_dir) / f'Subject{data_id}' / 'videos'
+        video_dir = Path(result_save_dir) / run_label / 'videos'
         video_dir.mkdir(parents=True, exist_ok=True)
 
         try:
             experiment_manager.visualizer.create_modality_videos(
                 predictions=outputs,
                 targets=targets,
-                subject=data_id,
-                frame_mask=None#frame_mask,
+                subject=run_label,
+                frame_mask=None,  # frame_mask,
             )
             logger.info(f"Visualization videos created in {time.time() - start_time:.2f} seconds")
         except Exception as e:
@@ -177,12 +185,11 @@ def eval_model(model, test_loader, result_save_dir, zero_conf_thresh, data_id, e
         else:
             continue
     
-    # Save results
-    if cfg.default.om:
-        save_path = os.path.join(result_save_dir, f'OM_{data_id}.json')
-    else:
-        save_path = os.path.join(result_save_dir, f'subject{data_id}.json')
-        
+    # Save results under an eval/ subdirectory
+    eval_dir = os.path.join(result_save_dir, 'eval')
+    os.makedirs(eval_dir, exist_ok=True)
+    save_path = os.path.join(eval_dir, f'{run_label}.json')
+
     logger.info(f'Saving results to {save_path}')
     with open(save_path, 'w') as f:
         json.dump(metrics, f, cls=NumpyEncoder, indent=4)
@@ -200,57 +207,135 @@ def main(cfg):
     pipeline = Pipeline(manager)
     pipeline.setup_training('OM', skip_support=True)
     
-    # Setup evaluation directory
+    # Default evaluation directory (used for non-OM evaluation)
     eval_dir = manager.experiment_path / 'eval'
     eval_dir.mkdir(exist_ok=True)
     
     if cfg.default.om:
         logger.info("Evaluating Ordinary Movement (OM) data")
-      
-        # List all of the OMs folders in the data path
-        om_folders = [f for f in os.listdir(cfg.default.data_path) if 'OM' in f]
-      
-        loaded=False 
+
+        data_root = cfg.default.data_path
+        entries = [e for e in os.scandir(data_root) if e.is_dir()]
+        has_om_dirs = any('OM' in e.name for e in entries)
+        has_subject_dirs = not has_om_dirs
+
+        # Load model checkpoint once for all OM evaluations
+        checkpoint_path = Path(f'{cfg.default.checkpoint_path}/model_{cfg.eval.checkpoint_flag}.pth')
+        if not checkpoint_path.exists():
+            logger.warning(f'Checkpoint {checkpoint_path} does not exist')
+            return
+
+        logger.info(f'Evaluating OM data using checkpoint {checkpoint_path}')
+        pipeline.load_checkpoint(checkpoint_path, model_only=True)
+
+        # Derive the tail of the experiment path (e.g., pressure/kld/seq_...)
+        exp_id = manager.exp_config.get_experiment_id(include_timestamp=False)
+        exp_parts = list(exp_id.parts)
+        # Drop data_type, OM flag, and model name (first three components)
+        tail_parts = exp_parts[3:] if len(exp_parts) > 3 else exp_parts
+
         all_metrics = {}
-        for om_folder in om_folders:
-            om_idx = extract_idx(om_folder)
-            
-            print(f"Processing OM {om_idx} data ...")
-             
-            # Create dataset for OM
-            _, _, test_dataset = create_dataset(cfg, subject=None,om_idx=om_idx)
-            test_loader = DataLoader(
-                test_dataset,
-                batch_size=cfg.training.batch_size,
-                shuffle=False,
-                num_workers=cfg.training.dataloader_workers
-            )
-       
-            # Load model checkpoint
-            checkpoint_path = Path(f'{cfg.default.checkpoint_path}/model_{cfg.eval.checkpoint_flag}.pth')
-            if not checkpoint_path.exists():
-                logger.warning(f'Checkpoint {checkpoint_path} does not exist')
-                return
-            
-            logger.info(f'Evaluating OM data using checkpoint {checkpoint_path}')
-            if not loaded:
-                pipeline.load_checkpoint(checkpoint_path, model_only=True)
-                loaded=True
-            
-            
-            # Evaluate
-            metrics = eval_model(
-                model=pipeline.model, 
-                test_loader=test_loader, 
-                result_save_dir=eval_dir, 
-                zero_conf_thresh=cfg.eval.zero_conf_thresh,
-                data_id=f'{om_idx}',  # Indicate OM evaluation
-                experiment_manager=manager,
-                cfg=cfg, 
-                writer=manager.writer, 
-                logger=logger
-            )
-            all_metrics[om_idx]=metrics
+
+        if has_om_dirs and not has_subject_dirs:
+            # Case A: data_path directly contains OM*/ folders (single-subject OM layout)
+            logger.info("Detected single-subject OM layout")
+            om_folders = sorted([e.name for e in entries if 'OM' in e.name])
+
+            for om_folder in om_folders:
+                om_idx = extract_idx(om_folder)
+                run_label = f'OM{om_idx}'
+                logger.info(f"Processing OM {om_idx} data ...")
+
+                # Create dataset for this OM
+                _, _, test_dataset = create_dataset(cfg, subject=None, om_idx=om_idx)
+                test_loader = DataLoader(
+                    test_dataset,
+                    batch_size=cfg.training.batch_size,
+                    shuffle=False,
+                    num_workers=cfg.training.dataloader_workers
+                )
+
+                # For single-subject OM, keep using the manager's experiment path
+                # but still follow the eval/output structure inside it.
+                single_root = manager.experiment_path
+
+                # Evaluate
+                metrics = eval_model(
+                    model=pipeline.model,
+                    test_loader=test_loader,
+                    result_save_dir=single_root,
+                    zero_conf_thresh=cfg.eval.zero_conf_thresh,
+                    data_id=f'{om_idx}',
+                    experiment_manager=manager,
+                    cfg=cfg,
+                    writer=manager.writer,
+                    logger=logger,
+                    data_root=data_root,
+                    run_label=run_label,
+                )
+                all_metrics[run_label] = metrics
+
+        elif has_subject_dirs:
+            # Case B: data_path contains multiple subject folders, each with OM*/
+            logger.info("Detected multi-subject OM layout")
+            subject_dirs = sorted(e.path for e in entries)
+            original_data_path = cfg.default.data_path
+
+            for subject_dir in subject_dirs:
+                subject_name = os.path.basename(subject_dir)
+                logger.info(f"Processing OM data for subject {subject_name}...")
+
+                subject_entries = [e for e in os.scandir(subject_dir) if e.is_dir() and 'OM' in e.name]
+                if not subject_entries:
+                    logger.info(f"  No OM directories found in {subject_dir}, skipping.")
+                    continue
+
+                subject_om_folders = sorted(e.name for e in subject_entries)
+
+                for om_folder in subject_om_folders:
+                    om_idx = extract_idx(om_folder)
+                    run_label = f'OM{om_idx}'
+                    logger.info(f"  Processing {subject_name} OM {om_idx} data ...")
+
+                    # Temporarily point data_path to this subject's OM chunk dir
+                    cfg.default.data_path = subject_dir
+                    try:
+                        _, _, test_dataset = create_dataset(cfg, subject=None, om_idx=om_idx)
+                    finally:
+                        cfg.default.data_path = original_data_path
+
+                    test_loader = DataLoader(
+                        test_dataset,
+                        batch_size=cfg.training.batch_size,
+                        shuffle=False,
+                        num_workers=cfg.training.dataloader_workers
+                    )
+
+                    # Build per-subject results root:
+                    # <results_path>/<data_type>/<subject_name>/pressure/kld/seq_...
+                    subject_root = Path(cfg.default.results_path) / cfg.data.data_type / subject_name
+                    if tail_parts:
+                        subject_root = subject_root.joinpath(*tail_parts)
+
+                    subject_root.mkdir(parents=True, exist_ok=True)
+
+                    metrics = eval_model(
+                        model=pipeline.model,
+                        test_loader=test_loader,
+                        result_save_dir=str(subject_root),
+                        zero_conf_thresh=cfg.eval.zero_conf_thresh,
+                        data_id=f'{om_idx}',
+                        experiment_manager=manager,
+                        cfg=cfg,
+                        writer=manager.writer,
+                        logger=logger,
+                        data_root=subject_dir,
+                        run_label=run_label,
+                    )
+                    # Use a composite key for metrics dict to avoid collisions
+                    all_metrics[f'{subject_name}_{run_label}'] = metrics
+        else:
+            raise ValueError(f"Could not determine OM directory structure in {data_root}")
     else: 
         # Process each subject
         checkpoint_flag = cfg.eval.checkpoint_flag

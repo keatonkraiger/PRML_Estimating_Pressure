@@ -1,13 +1,32 @@
 {
-    "OM1": 52.2,
-    "OM2": 52.2,
-    "OM3": 52.2,
-    "OM4": 52.2,
-    "OM5": 52.2,
-    "OM6": 52.2,
-    "OM7": 52.2,
-    "OM8": 52.2,
-    "OM9": 52.2,
-    "OM10": 52.2,
-    "OM11": 52.2
+    "Kyle": {
+        "mass_kg": 61,
+        "height_m": 1.76,
+        "gender": "M",
+        "age": -1
+    },
+    "Varad": {
+        "mass_kg": 55,
+        "height_m": 1.72,
+        "gender": "M",
+        "age": -1
+    },
+    "Spencer": {
+        "mass_kg": 74,
+        "height_m": 1.8,
+        "gender": "M",
+        "age": -1
+    },
+    "Abhinav": {
+        "mass_kg": 93,
+        "height_m": 1.83,
+        "gender": "M",
+        "age": -1
+    },
+    "Keaton": {
+        "mass_kg": 52,
+        "height_m": 1.74,
+        "gender": "M",
+        "age": -1
+    }
 }

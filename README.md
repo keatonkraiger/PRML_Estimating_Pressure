@@ -64,14 +64,13 @@ pip install -e .
 
 ## Dataset Creation
 
-After filling out the form to access the PSUTMM-100 dataset, you will receive a link to download the dataset. We will then use the `scripts/create_chunk_dataset.py` script to create the dataset in the required format. It will be up to you to look at the various arguments available to you if you wish to change any of the preprocessing steps. By default, to create a dataset using 3D OpenPose joints with corresponding foot pressure distributions, and Center of Mass values, you may run the following command:
+After filling out the form to access the PSUTMM-100 dataset, you will receive a link to download the dataset. We will then use the `scripts/create_chunk_data.py` script to create the dataset in the required format. It will be up to you to look at the various arguments available to you if you wish to change any of the preprocessing steps. By default, to create a dataset using 3D OpenPose joints with corresponding foot pressure distributions, and Center of Mass values, you may run the following command:
 
 ```bash
-python scripts/create_chunk_dataset.py --gt_com --make_pressure_distribution --save_path Chunked_PSU/BODY25_3D_5fps_distribution --root_dir path_to_dataset/PSU100/Subject_wise --center_w_op
+python scripts/create_chunk_data.py  --make_pressure_distribution --save_path Chunked_PSU/BODY25_3D_5fps_distribution --root_dir path_to_dataset/PSU100/Subject_wise --center_w_op
 ```
 
 where the above arguments
-- `--gt_com` will include the ground truth Center of Mass in the dataset.
 - `--make_pressure_distribution` will normalize the pressure maps into distributions.
 - `--save_path` specifies the path to save the dataset.
 - `--root_dir` specifies the root directory of the PSUTMM-100 dataset.
@@ -79,26 +78,26 @@ where the above arguments
 
 If you are not doing one of the extensions, you will only be using the foot pressure distribution data.
 
-You  can find the Ordinary Movement data here: [OneDrive Link](https://pennstateoffice365-my.sharepoint.com/:u:/g/personal/kbk5531_psu_edu/EWnEc94Sp5NIj0XaGIf9cBkBYGadtD9smVOj05j1gD9L4g?e=OebffI)
+
 
 ## Training and Evaluation
 
 To train the FootFormer model to predict pressure from the dataset, you can use the `scripts/train.py` script and pass a configuration file. You can run the following command to train the model:
 
 ```bash
-python scripts/train.py --config configs/footformer.yaml
+python scripts/train.py --config configs/footformer_pressure.yaml
 ```
 
 This will train and test the model LOSO (Leave-One-Subject-Out) on the PSUTMM-100 dataset and save the output, checkpoints, and evaluation results in the `output/` directory (specified in the configuration file). You can resume training with
 
 ```bash
-python scripts/train.py --config configs/footformer.yaml --resume
+python scripts/train.py --config configs/footformer_pressure.yaml --resume
 ```
 
 You can also just evaluate a trained model with
 
 ```bash
-python scripts/eval.py --config configs/footformer.yaml
+python scripts/eval.py --config configs/footformer_pressure.yaml
 ```
 
 ## 🧠 Dataset Format
@@ -139,13 +138,18 @@ Each joint is represented as an index from 0 to 24. Below is the joint index map
 
 ## Evaluating on Ordinary Movements 
 
+You  can find the Ordinary Movement data here: [OneDrive Link](https://pennstateoffice365-my.sharepoint.com/:u:/g/personal/kbk5531_psu_edu/IQDCGKl-UMKeR5PcShJs-2BJAQvTCGEnl3Jt0Cvc6E5N9MU?e=7UerSZ)
+
 To evaluate on the ordinary movements dataset, you first will need to create the dataset with 
 
 ```bash
-python scripts/create_chunk_dataset.py --make_pressure_distribution --save_path Chunked_PSU/BODY25_3D_5fps_distribution --root_dir path/to/OM/root --sample_rate 1
+python scripts/create_chunk_dataset.py --make_pressure_distribution --save_path Chunked_OM/BODY25_3D_1fps_distribution --root_dir path/to/OrdinaryMovements--sample_rate 1 --center_w_op --OM
 ```
 
-In a config file, set the `checkpoint` directory to the path of a checkpoint for **Subject1**. Then, you can run the evaluation script with
+In the above command, `OrdinaryMovements` is the name of the directory containing the ordinary movements data. This folder should have multiple subject folders inside (e.g. Abhinav, Keaton, ...). 
+
+
+When evaluating on the OM data, we will load network weights that were trained on PSUTMM data. In a config file, set the `checkpoint` directory to the path of a checkpoint for **Subject1**, for instance. You may use a different subject's checkpoint. When evaluating on OM data, the `data_path` parameter should be set to the root OM processed dataset directory (e.g. `Chunked_OM/BODY25_3D_1fps_distribution`). You can then run the evaluation with
 
 ```bash
 python scripts/eval.py --config configs/footformer_pressure_OM.yaml

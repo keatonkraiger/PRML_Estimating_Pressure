@@ -7,23 +7,23 @@ data:
   num_regions:
   pressure_is_distribution: true
   sequence_length: 13
-  shuffle_data: false
+  shuffle_data: true
   subject_wise_max_norm: false
   subject_wise_weight_norm: false
-  use_regions: False
+  use_regions: false
   view: 1
   binary_contact: False 
   gt_com: False
 
 default:
-  checkpoint_path: path to the results directory trained on PSUTMM-100/checkpoints/Subject1 (e.g. /mnt/c/Users/Keaton/Desktop/S25/PRML_TA/PRML_Estimatating_Pressure/Results/BODY25_3D/footformer/pressure/kld/seq_13_lr_0.0005_bs_256__adamw__cosine_warmup_pose_dim256_heads_16_layers_8_dropout_0.1_pos_sinusoidal_decoder_dim_256_mlpd_2048_embedder_gcn_multi/checkpoints/Subject1)
-  data_path: Chunked_PSU/OM_BODY25_3D
+  checkpoint_path: Results/BODY25_3D/footformer/pressure/kld/seq_13_lr_0.0005_bs_256__adamw__cosine_warmup_pose_dim256_heads_16_layers_8_dropout_0.1_pos_sinusoidal_decoder_dim_256_mlpd_2048_embedder_gcn_multi/checkpoints/Subject1
+  data_path: Chunked_OM/BODY25_3D_1fps_distribution
   device: cuda
   log_interval: 50
   log_path: log
   mode: ['pressure'] 
   om: true
-  results_path: OM_results 
+  results_path: OM_results
   seed: 0
   test: true
   train: False
@@ -34,7 +34,7 @@ eval:
   checkpoint_flag: best
   eval_results_path: stats
   save_output: True
-  zero_conf_thresh: 0
+  zero_conf_thresh: 1
 
 loss:
   com_reduction: mean
